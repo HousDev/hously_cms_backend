@@ -4,6 +4,7 @@ const csv = require("csv-parser");
 const { Readable } = require("stream");
 
 // CREATE (website)
+// CREATE (website)
 const createEnquiry = (req, res) => {
   const { name, email, inquiry_type, service_required } = req.body;
 
@@ -13,10 +14,69 @@ const createEnquiry = (req, res) => {
     [name, email, inquiry_type, service_required],
     (err) => {
       if (err) return res.status(500).json({ message: "Error" });
-      res.json({ message: "Enquiry added" });
+
+      // ✅ STORE in DB (for offline admin)
+      db.query(
+        "INSERT INTO notifications (title, message, type) VALUES (?, ?, ?)",
+        [
+          "New Enquiry",
+          `New enquiry received from ${name}`,
+          "enquiry",
+        ],
+        (err) => {
+          if (err) console.log("❌ Notification DB error:", err);
+        }
+      );
+
+      // ✅ REAL-TIME (if admin online)
+      global.io.to("admin").emit("new_enquiry", {
+        title: "New Enquiry",
+        message: `New enquiry received from ${name}`,
+        email,
+        service: service_required,
+        time: new Date(),
+      });
+
+      res.json({ message: "Enquiry added successfully" });
     }
   );
 };
+// const createEnquiry = (req, res) => {
+//   const { name, email, inquiry_type, service_required } = req.body;
+
+//   db.query(
+//     `INSERT INTO enquiries (name, email, inquiry_type, service_required)
+//      VALUES (?, ?, ?, ?)`,
+//     [name, email, inquiry_type, service_required],
+//     (err) => {
+//       if (err) return res.status(500).json({ message: "Error" });
+
+//       // admin offline that case
+//       db.query(
+//         "INSERT INTO notifications (title, message, type) VALUES (?, ?, ?)",
+//         [
+//           "New Enquiry",
+//           `New enquiry received from ${name}`,
+//           "enquiry",
+//         ]
+//       );
+//           // 🔔 Emit notification to admin
+//       global.io.to("admin").emit("new_enquiry",
+        
+//         {
+        
+//         title: "New Enquiry",
+//         message: `New enquiry received from ${name}`,
+//         email: email,
+//         service: service_required,
+//         time: new Date(),
+        
+//       });
+
+//       console.log("📢 Notification sent"); 
+//     }
+//   );
+// };
 
 const getEnquiries = (req, res) => {
   const { status, search, priority } = req.query; // ✅ ADD priority
@@ -57,7 +117,13 @@ const updateStatus = (req, res) => {
     [status, id],
     (err) => {
       if (err) return res.status(500).json({ message: "Error" });
-      res.json({ message: "Updated" });
+     // 🔔 Emit notification to admin
+      global.io.to("admin").emit("enquiry_status_updated", {
+        title: "Enquiry Updated",
+        message: `Enquiry #${id} status changed to ${status}`,
+        status: status,
+        time: new Date(),
+      });
     }
   );
 };

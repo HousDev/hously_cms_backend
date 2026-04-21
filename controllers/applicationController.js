@@ -14,6 +14,10 @@ const createApplication = (req, res) => {
 
   const resume = req.file ? req.file.filename : null;
 
+  if (!jobId || !fullName || !email || !phone || !resume) {
+    return res.status(400).json({ message: "Required fields missing" });
+  }
+
   const sql = `
     INSERT INTO applications
     (job_id, full_name, email, phone, linkedin, portfolio, cover_letter, resume)
@@ -25,31 +29,40 @@ const createApplication = (req, res) => {
     [jobId, fullName, email, phone, linkedin, portfolio, coverLetter, resume],
     (err) => {
       if (err) return res.status(500).json({ message: "Error" });
+
       res.json({ message: "Application submitted" });
     }
   );
 };
-
 /* GET ALL */
 const getApplications = (req, res) => {
   const { status, search } = req.query;
 
-  let sql = "SELECT * FROM applications WHERE 1=1";
+  let sql = `
+    SELECT 
+      a.*, 
+      j.job_title 
+    FROM applications a
+    LEFT JOIN jobs j ON a.job_id = j.id
+    WHERE 1=1
+  `;
+
   const params = [];
 
-  if (status) {
-    sql += " AND status=?";
+  if (status && status !== "all") {
+    sql += " AND a.status=?";
     params.push(status);
   }
 
   if (search) {
-    sql += " AND (full_name LIKE ? OR email LIKE ?)";
+    sql += " AND (a.full_name LIKE ? OR a.email LIKE ?)";
     params.push(`%${search}%`, `%${search}%`);
   }
 
-  sql += " ORDER BY created_at DESC";
+  sql += " ORDER BY a.created_at DESC";
 
   db.query(sql, params, (err, result) => {
+    if (err) return res.status(500).json(err);
     res.json(result);
   });
 };
