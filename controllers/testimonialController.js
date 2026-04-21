@@ -73,8 +73,10 @@ const getTestimonials = (req, res) => {
 };
 
 // UPDATE
+
 const updateTestimonial = (req, res) => {
   const { id } = req.params;
+
   const {
     client_name,
     role,
@@ -82,13 +84,18 @@ const updateTestimonial = (req, res) => {
     rating,
     display_order,
     is_active,
+    existing_image,
   } = req.body;
 
-  let image_url = req.body.image_url;
+  let image_url = existing_image || null;
 
   if (req.file) {
     image_url = `http://localhost:5000/uploads/testimonials/${req.file.filename}`;
   }
+
+  const ratingInt = parseInt(rating) || 0;
+  const orderInt = parseInt(display_order) || 0;
+  const activeBool = is_active === "true" || is_active === true;
 
   const sql = `
     UPDATE testimonials
@@ -98,13 +105,57 @@ const updateTestimonial = (req, res) => {
 
   db.query(
     sql,
-    [client_name, role, testimonial, rating, image_url, display_order, is_active, id],
+    [
+      client_name,
+      role,
+      testimonial,
+      ratingInt,
+      image_url,
+      orderInt,
+      activeBool,
+      id,
+    ],
     (err) => {
-      if (err) return res.status(500).json({ message: "Update failed" });
+      if (err) {
+        console.log("SQL ERROR:", err);
+        return res.status(500).json({ message: "Update failed", error: err });
+      }
       res.json({ message: "Updated" });
     }
   );
 };
+// const updateTestimonial = (req, res) => {
+//   const { id } = req.params;
+//   const {
+//     client_name,
+//     role,
+//     testimonial,
+//     rating,
+//     display_order,
+//     is_active,
+//   } = req.body;
+
+//   let image_url = req.body.image_url;
+
+//   if (req.file) {
+//     image_url = `http://localhost:5000/uploads/testimonials/${req.file.filename}`;
+//   }
+
+//   const sql = `
+//     UPDATE testimonials
+//     SET client_name=?, role=?, testimonial=?, rating=?, image_url=?, display_order=?, is_active=?
+//     WHERE id=?
+//   `;
+
+//   db.query(
+//     sql,
+//     [client_name, role, testimonial, rating, image_url, display_order, is_active, id],
+//     (err) => {
+//       if (err) return res.status(500).json({ message: "Update failed" });
+//       res.json({ message: "Updated" });
+//     }
+//   );
+// };
 
 // DELETE
 const deleteTestimonial = (req, res) => {
